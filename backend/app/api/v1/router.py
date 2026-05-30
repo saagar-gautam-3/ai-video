@@ -1,0 +1,8 @@
+"""API Version 1 sub-router initialization"""
+from fastapi import APIRouter
+from app.api.v1.endpoints import health
+
+api_router = APIRouter()
+
+# Include versioned routers
+api_router.include_router(health.router, tags=["Health"])

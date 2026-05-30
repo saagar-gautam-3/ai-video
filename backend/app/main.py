@@ -1,63 +1,85 @@
-"""FastAPI application factory"""
+"""FastAPI application factory and lifecycle entrypoint"""
+from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import api_router
-from app.core.config import settings, setup_logging
-from app.core.exceptions import ApplicationException, application_exception_handler, general_exception_handler
+from app.api.v1.router import api_router
+from app.core.config import settings
+from app.core.logging import setup_logging
+from app.db.database import init_db, close_db
 from app.db.redis import init_redis, close_redis
-from app.db.session import init_db, close_db
+from app.exceptions.handlers import register_exception_handlers
+from app.middleware.logging_middleware import RequestLoggingMiddleware
 
-# Setup logging
+# Configure logging at startup
 setup_logging()
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> FastAPI:
-    """Create and configure FastAPI application"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle context manager to manage application startup and shutdown events"""
+    logger.info("Starting up FastAPI application...")
+    try:
+        # Initialize DB and verify connection
+        await init_db()
+        # Initialize Redis connection pool
+        await init_redis()
+        logger.info("All services initialized successfully.")
+    except Exception as e:
+        logger.critical(f"Service initialization failed during startup: {str(e)}", exc_info=True)
+        raise e
+        
+    yield
     
+    logger.info("Shutting down FastAPI application...")
+    # Clean up connections
+    await close_redis()
+    await close_db()
+    logger.info("All connections closed. Shutdown complete.")
+
+
+def create_app() -> FastAPI:
+    """FastAPI application factory"""
     app = FastAPI(
         title=settings.APP_NAME,
         debug=settings.DEBUG,
-        version="0.1.0",
+        version=settings.APP_VERSION,
+        lifespan=lifespan,
     )
-    
-    # CORS middleware
+
+    # CORS Middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Customize for production
+        allow_origins=["*"],  # Restrict origins in production config
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    # Exception handlers
-    app.add_exception_handler(ApplicationException, application_exception_handler)
-    app.add_exception_handler(Exception, general_exception_handler)
-    
-    # Include API routes
-    app.include_router(api_router)
-    
-    # Startup event
-    @app.on_event("startup")
-    async def startup_event() -> None:
-        """Initialize connections on startup"""
-        logger.info(f"Starting {settings.APP_NAME} - Environment: {settings.APP_ENV}")
-        await init_db()
-        await init_redis()
-    
-    # Shutdown event
-    @app.on_event("shutdown")
-    async def shutdown_event() -> None:
-        """Close connections on shutdown"""
-        logger.info(f"Shutting down {settings.APP_NAME}")
-        await close_redis()
-        await close_db()
-    
+
+    # Request Performance and Audit Logging Middleware
+    app.add_middleware(RequestLoggingMiddleware)
+
+    # Register Exception Handlers (centralized validation, database, and internal errors)
+    register_exception_handlers(app)
+
+    # Mount versioned API routes
+    app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    @app.get("/", tags=["Root"])
+    async def root_redirect():
+        """Root endpoint returning basic application meta"""
+        return {
+            "app": settings.APP_NAME,
+            "version": settings.APP_VERSION,
+            "status": "online",
+            "docs_url": "/docs"
+        }
+
     return app
 
 
-# Create application instance
+# Create the application instance
 app = create_app()
