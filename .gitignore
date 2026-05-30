@@ -1,0 +1,100 @@
+# Documentation
+/docs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.example
+
+# Generated/Storage files
+/storage/audio/
+/storage/images/
+/storage/renders/
+/storage/subtitles/
+/storage/videos/
+
+# Node/Frontend
+node_modules/
+npm-debug.log
+yarn-error.log
+.next/
+dist/
+build/
+.nuxt/
+coverage/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+.pgpass
+
+# OS specific
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+.tmp/
+temp/
+
+# Docker
+docker/.env
+docker/.env.local
+
+# Misc
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
